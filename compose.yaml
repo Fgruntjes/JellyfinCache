@@ -1,0 +1,16 @@
+services:
+  jellyfin-cache-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jellyfin-cache-proxy
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      JELLYFIN_CACHE_DIR: /cache
+    ports:
+      - "8096:8096"
+    volumes:
+      - /mnt/jellyfin-cache:/cache

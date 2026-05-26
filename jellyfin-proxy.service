@@ -1,0 +1,23 @@
+[Unit]
+Description=Jellyfin Caching Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jellyfin-proxy
+WorkingDirectory=/opt/jellyfin-proxy
+ExecStart=/opt/jellyfin-proxy/venv/bin/python main.py
+Restart=on-failure
+RestartSec=10
+
+# Load config from .env file in the working directory
+EnvironmentFile=-/opt/jellyfin-proxy/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jellyfin-proxy
+
+[Install]
+WantedBy=multi-user.target
