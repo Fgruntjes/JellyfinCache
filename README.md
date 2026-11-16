@@ -1,5 +1,7 @@
 # Jellyfin Caching Proxy
 
+> Fork of [ArnyminerZ/JellyfinCache](https://github.com/ArnyminerZ/JellyfinCache) adding favourites prefetch. The upstream repository has no licence file yet; this fork claims none either.
+
 A lightweight caching proxy that sits between your local TV and your remote Jellyfin server.
 
 ## How it works
@@ -9,7 +11,7 @@ A lightweight caching proxy that sits between your local TV and your remote Jell
 - Media stream requests are intercepted:
   - If the file is **fully cached locally** → served from local disk (fast, no internet needed)
   - If **not cached** → streamed from the remote Jellyfin, and a background download is triggered
-- A prefetch daemon proactively downloads your **Continue Watching** and **Next Up** items
+- A prefetch daemon proactively downloads your **Continue Watching**, **Next Up** and **Favourite** items (a favourite series pulls its next `JELLYFIN_PREFETCH_FAVOURITE_EPISODES` unplayed episodes)
 - Watched files are automatically evicted via two complementary layers (see below)
 
 All state (watched history, progress, users) lives on the remote Jellyfin. The proxy is stateless.

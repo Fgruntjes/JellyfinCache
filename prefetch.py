@@ -10,7 +10,7 @@ Each poll cycle does two things:
      past, evict the file.  This is Layer 2 of the eviction strategy: it covers
      restarts (which lose in-flight asyncio tasks from Layer 1) and items marked
      as watched on a different client that didn't go through this proxy.
-  2. Prefetch — queue downloads for Continue Watching and Next Up items.
+  2. Prefetch — queue downloads for Continue Watching, Next Up and Favourites.
 
 Run this as a separate process, or start it automatically via main.py.
 """
@@ -54,7 +54,7 @@ class PrefetchDaemon:
         """Return Jellyfin users to prefetch for, filtered by JELLYFIN_PREFETCH_USERS if set."""
         resp = await client.get(
             f"{self.cfg.remote_url}/Users",
-            headers={"X-Emby-Token": self.cfg.remote_api_key},
+            headers=self.cfg.remote_auth_headers,
         )
         if resp.status_code != 200:
             log.warning("Could not fetch user list: HTTP %s", resp.status_code)
@@ -87,7 +87,7 @@ class PrefetchDaemon:
             return
 
         now = datetime.now(timezone.utc)
-        headers = {"X-Emby-Token": self.cfg.remote_api_key}
+        headers = self.cfg.remote_auth_headers
 
         async with httpx.AsyncClient(timeout=15) as client:
             users = await self._get_users(client)
@@ -141,7 +141,7 @@ class PrefetchDaemon:
 
     async def _get_candidates(self) -> list[str]:
         """Return item IDs worth pre-downloading for all configured users."""
-        headers = {"X-Emby-Token": self.cfg.remote_api_key}
+        headers = self.cfg.remote_auth_headers
         base = self.cfg.remote_url
         candidates = []
 
@@ -176,6 +176,10 @@ class PrefetchDaemon:
                         candidates.append(item["Id"])
                         log.debug("[%s] Next up: %s", user_name, item.get("Name"))
 
+                candidates.extend(
+                    await self._get_favourite_candidates(client, user_id, user_name)
+                )
+
         # Deduplicate while preserving order
         seen: set[str] = set()
         result: list[str] = []
@@ -185,6 +189,51 @@ class PrefetchDaemon:
                 result.append(item_id)
 
         return result
+
+    async def _get_favourite_candidates(
+        self, client: httpx.AsyncClient, user_id: str, user_name: str
+    ) -> list[str]:
+        headers = self.cfg.remote_auth_headers
+        base = self.cfg.remote_url
+        favourites_resp = await client.get(
+            f"{base}/Items",
+            headers=headers,
+            params={
+                "userId": user_id,
+                "Filters": "IsFavorite",
+                "Recursive": "true",
+                "IncludeItemTypes": "Movie,Episode,Series",
+            },
+        )
+        if favourites_resp.status_code != 200:
+            return []
+
+        candidates = []
+        for item in favourites_resp.json().get("Items", []):
+            if item.get("Type") != "Series":
+                candidates.append(item["Id"])
+                log.debug("[%s] Favourite: %s", user_name, item.get("Name"))
+                continue
+            episodes_resp = await client.get(
+                f"{base}/Items",
+                headers=headers,
+                params={
+                    "userId": user_id,
+                    "ParentId": item["Id"],
+                    "Recursive": "true",
+                    "IncludeItemTypes": "Episode",
+                    "Filters": "IsUnplayed",
+                    "IsMissing": "false",
+                    "SortBy": "ParentIndexNumber,IndexNumber",
+                    "Limit": self.cfg.prefetch_favourite_episodes,
+                },
+            )
+            if episodes_resp.status_code == 200:
+                for episode in episodes_resp.json().get("Items", []):
+                    candidates.append(episode["Id"])
+                    log.debug("[%s] Favourite series %s: %s",
+                              user_name, item.get("Name"), episode.get("Name"))
+        return candidates
 
 
 async def main():

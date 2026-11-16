@@ -48,6 +48,11 @@ class Config:
 
     # Usernames or user IDs to prefetch/evict-check for (empty list = all users)
     prefetch_users: list = field(default_factory=list)
+    prefetch_favourite_episodes: int = 3
+
+    @property
+    def remote_auth_headers(self) -> dict[str, str]:
+        return {"Authorization": f'MediaBrowser Token="{self.remote_api_key}"'}
 
     @classmethod
     def load(cls) -> "Config":
@@ -77,6 +82,9 @@ class Config:
                 os.getenv("JELLYFIN_LOCAL_HLS_USE_NVIDIA", "0")
             ),
             prefetch_users=prefetch_users,
+            prefetch_favourite_episodes=int(
+                os.getenv("JELLYFIN_PREFETCH_FAVOURITE_EPISODES", "3")
+            ),
         )
 
 

@@ -297,7 +297,7 @@ class DownloadManager:
         Ask the remote Jellyfin for the best direct-play stream URL and filename.
         Returns (filename, url).
         """
-        headers = {"X-Emby-Token": self.cfg.remote_api_key}
+        headers = self.cfg.remote_auth_headers
         base = self.cfg.remote_url
         user_id = self._resolve_user_id()
 
@@ -322,7 +322,7 @@ class DownloadManager:
             else:
                 filename = f"{item_id}.mkv"
 
-            url = f"{base}/Items/{item_id}/Download?api_key={self.cfg.remote_api_key}"
+            url = f"{base}/Items/{item_id}/Download"
 
         return filename, url
 
@@ -331,7 +331,7 @@ class DownloadManager:
         tmp_path = dest.with_suffix(".tmp")
         resume_from = tmp_path.stat().st_size if tmp_path.exists() else 0
 
-        req_headers: dict[str, str] = {}
+        req_headers = dict(self.cfg.remote_auth_headers)
         hasher = hashlib.sha256()
         if resume_from:
             req_headers["Range"] = f"bytes={resume_from}-"
