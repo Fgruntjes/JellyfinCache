@@ -149,7 +149,7 @@ async def _fetch_meta(item_id: str) -> dict:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
                 f"{_cfg.remote_url}/Users/{_cfg.remote_user_id}/Items/{item_id}",
-                headers={"X-Emby-Token": _cfg.remote_api_key},
+                headers=_cfg.remote_auth_headers,
             )
             if r.status_code == 200:
                 meta = r.json()
@@ -188,7 +188,7 @@ async def _fetch_sessions() -> list[dict]:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
                 f"{_cfg.remote_url}/Sessions",
-                headers={"X-Emby-Token": _cfg.remote_api_key},
+                headers=_cfg.remote_auth_headers,
                 params={"ActiveWithinSeconds": 60},
             )
             if r.status_code == 200:
@@ -202,7 +202,7 @@ async def _fetch_watchers() -> dict[str, list[str]]:
     """Return {item_id: [user_name, ...]} for every item in any user's
     Continue Watching or Next Up list. Used to explain why an item is cached."""
     mapping: dict[str, list[str]] = {}
-    headers = {"X-Emby-Token": _cfg.remote_api_key}
+    headers = _cfg.remote_auth_headers
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             users_r = await c.get(f"{_cfg.remote_url}/Users", headers=headers)
